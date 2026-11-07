@@ -52,6 +52,7 @@ const T = G.SC;
   check("段階の名前は指針の9つだけ", T.every((t) => !t.f || D.concat(E).some((x) => x[1] === t.f)));
   check("警戒アラートは33、特別警戒アラートは35（環境省の発表基準）", /33（予測）/.test(T.find((t) => /^熱中症警戒アラートは/.test(t.s)).w) && /35（予測）/.test(T.find((t) => /^熱中症特別警戒アラートは/.test(t.s)).w));
   check("意識がおかしい人に口から水を飲ませるのは「よくない」", T.filter((t) => /意識が(ぼんやり|おかしい)/.test(t.s) && /飲ませ/.test(t.s)).every((t) => t.a === 1) && T.some((t) => /意識がぼんやり/.test(t.s)));
+  check("口から飲んでもらう「よい」場面は、意識がはっきりし吐き気がないことを両方書く", T.filter((t) => !t.a && /飲んでもら/.test(t.s)).every((t) => /意識がはっきり/.test(t.s) && /吐き気のない/.test(t.s)) && T.filter((t) => !t.a && /飲んでもら/.test(t.s)).length >= 2);
   check("出典は環境省のページ", Object.values(G.SRC).every((u) => /^https:\/\/www\.wbgt\.env\.go\.jp\//.test(u)));
   check("言い方：熱中症を「必ず防げる」「絶対」などと言い切らない", !/必ず防げ|絶対に?防|治ります|診断します/.test(dataSrc + html));
 }
