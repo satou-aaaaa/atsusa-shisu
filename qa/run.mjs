@@ -98,7 +98,10 @@ const T = G.SC;
   for (let t = 0; t < 300; t++) { const g = t % 5 === 4 ? "" : G.GROUPS[t % 4], L = G.practiceList(G.rng(G.seedOf("qa-p:" + t)), g); if (L.length !== 5 || L.some((q) => !G.valid(q)) || (g && L.some((q) => T[G.mainOf(q)].g !== g))) pb.push(t); }
   check("練習：なかまごとに5問・主役はそのなかま・こわれた問題を作らない（300回）", pb.length === 0, pb.slice(0, 5).join(","));
   { const L = G.practiceList(G.rng(1), T[7].g, 7); check("練習：めやす帳から選んだ場面が1問目に出る", G.mainOf(L[0]) === 7); }
-  check("こわれた問題は使わない（valid）", !G.valid({ k: "o", t: 999 }) && !G.valid({ k: "o", t: "1" }) && !G.valid({ k: "w", x: 1, ts: [4, 6, 3] }) && !G.valid({ k: "w", x: 2, ts: [0, 1, 2] }) && !G.valid({ k: "w", x: 1, ts: [1, 1, 0] }) && !G.valid({ k: "x" }) && G.valid({ k: "w", x: 1, ts: [1, 3, 9] }));
+  check("こわれた問題は使わない（valid）", !G.valid({ k: "o", t: 999 }) && !G.valid({ k: "o", t: "1" }) && !G.valid({ k: "w", x: 1, ts: [4, 6, 3] }) && !G.valid({ k: "w", x: 2, ts: [0, 1, 2] }) && !G.valid({ k: "w", x: 1, ts: [1, 1, 0] }) && !G.valid({ k: "x" }) && !G.valid({ k: "w", x: 1, ts: [1, 3, , ] }) && G.valid({ k: "w", x: 1, ts: [1, 3, 9] }));
+  // ひな形（ほかのゲーム）の言葉が残らない：実績の「なかま」は本当にあるなかまだけ（2026-11-07 CodeRabbit が「通る場所」「安全運転名人」の残りを見つけた）
+  { const named = [...html.matchAll(/「([^」]+)」の場面に全部/g)].map((m) => m[1]), feed = readFileSync(path.join(root, ".github/ISSUE_TEMPLATE/feedback.yml"), "utf8"), left = ["安全運転", "交差点", "踏切", "通る場所", "自転車", "冷蔵庫", "節電"].filter((w) => html.includes(w) || feed.includes(w));
+    check("実績のなかまの名前が本当のなかま・ほかのゲームの言葉が残っていない", named.length >= 2 && named.every((g) => G.GROUPS.includes(g)) && !left.length, left.join(",") || named.join(",")); }
   { const ws = []; for (let n = 0; n < 365; n++) ws.push(...G.dailyList(day(n)).concat(G.hardList(day(n))).filter((q) => q.k === "w")); check("「どれ？」は似た場面（z が同じ）を並べない・答えはちょうど1つ（1年分）", ws.every((q) => G.valid(q) && q.ts.filter((t) => T[t].a === q.x).length === 1), ws.length); }
   check("★：はずれで★1・ヒントで当てると★2・そのまま当てると★3", G.starsOf({ m: 0, h: 0 }) === 3 && G.starsOf({ m: 0, h: 1 }) === 2 && G.starsOf({ m: 1, h: 0 }) === 1 && G.starsOf({ m: 1, h: 1 }) === 1);
 }

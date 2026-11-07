@@ -28,7 +28,7 @@ body:
     id: good
     attributes:
       label: よかった所
-      placeholder: 例）冷蔵庫の設定で節約できると知らなかった
+      placeholder: 例）湿度が暑さ指数に大きく効くと知らなかった
     validations:
       required: false
   - type: textarea

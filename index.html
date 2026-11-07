@@ -377,7 +377,7 @@ function load() { let a = null, b = null; try { b = JSON.parse(localStorage.getI
 function save(fn) { const s = load(); fn(s); s.t = Math.max(Date.now(), (s.t || 0) + 1); const j = JSON.stringify(s); try { localStorage.setItem(KEY, j); mem = null; } catch (e) { mem = j; } return s; }
 function streak(days) { let k = todayKey(), n = 0; if (!days[k]) k = prevDay(k); while (days[k]) { n++; k = prevDay(k); } return n; }
 const playedDays = (s) => new Set([...Object.keys(s.days), ...Object.keys(s.late)]).size;
-const metSet = (s) => new Set(Object.keys(s.seen).map(Number).filter((t) => T[t]));
+const metSet = (s) => new Set(Object.keys(s.seen).filter((t) => s.seen[t] > 0).map(Number).filter((t) => T[t]));
 const RANKS = [[0, "暑さ指数はじめ"], [10, "めやすじょうず"], [25, "熱中症よぼう名人"], [T.length, "暑さ指数博士"]];
 const rankOf = (n) => RANKS.filter((r) => n >= r[0]).pop()[1];
 const nextRank = (n) => RANKS.find((r) => r[0] > n);
@@ -386,14 +386,14 @@ const okRec = (x) => x && Array.isArray(x.r) && x.r.every((r) => r && typeof r.m
 // 実績：腕前は今日の5問・上級・あとからで数え、集める（出会った場面）は練習・とことんも数える
 function achList(s) {
   const D = Object.values(s.days).filter(okRec), H = Object.values(s.hdays).filter(okRec), A = Object.values(s.late).filter(okRec), all = D.concat(H, A).flatMap((x) => x.r), met = metSet(s).size;
-  const grp = (g) => T.filter((t) => t.g === g).every((t) => s.seen[t.id]);
+  const grp = (g) => T.filter((t) => t.g === g).every((t) => s.seen[t.id] > 0);
   return [
     ["はじめの場面", "場面に1つ出会う", met, 1],
     ["めやすじょうず", "場面に10出会う（練習・とことんも数える）", met, 10],
-    ["安全運転名人", "場面に25出会う", met, 25],
+    ["熱中症よぼう名人", "場面に25出会う", met, 25],
     ["暑さ指数博士", `全部の場面（${T.length}）に出会う`, met, T.length],
-    ["通る場所にくわしい", "「通る場所」の場面に全部出会う", grp(G.GROUPS[0]) ? 1 : 0, 1],
-    ["交差点にくわしい", "「交差点・踏切」の場面に全部出会う", grp(G.GROUPS[1]) ? 1 : 0, 1],
+    ["くらしの暑さにくわしい", "「ふだんのくらし」の場面に全部出会う", grp(G.GROUPS[0]) ? 1 : 0, 1],
+    ["運動の暑さにくわしい", "「運動・部活」の場面に全部出会う", grp(G.GROUPS[1]) ? 1 : 0, 1],
     ["一度で十問", "今日の5問・上級・あとからで、ヒントなしで当てた問題が10", all.filter(one).length, 10],
     ["一度で五十問", "今日の5問・上級・あとからで、ヒントなしで当てた問題が50", all.filter(one).length, 50],
     ["五問ぜんぶ一度で", "今日の5問を全部、ヒントなしで当てる", D.filter((x) => x.r.length >= 5 && x.r.every(one)).length, 1],

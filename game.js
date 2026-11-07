@@ -22,13 +22,13 @@
   const idsOf = (q) => (q.k === "w" ? q.ts : [q.t]);
   // 答えの番号（o は 0 よい・1 よくない、w は当てはまる場面の場所）
   const answerOf = (q) => (q.k === "o" ? SC[q.t].a : q.ts.findIndex((t) => SC[t].a === q.x));
-  // 問題の主役（ルール帳の「一度で当てた」に数える場面）
+  // 問題の主役（めやす帳の「一度で当てた」に数える場面）
   const mainOf = (q) => (q.k === "o" ? q.t : q.ts[answerOf(q)]);
   // 問題の形が正しいか（保存してあった問題を使う前に確かめる）
   function valid(q) {
     if (!q || typeof q !== "object" || !["o", "w"].includes(q.k)) return false;
     const ids = idsOf(q);
-    if (!Array.isArray(ids) || !ids.every((i) => Number.isInteger(i) && i >= 0 && i < SC.length) || new Set(ids).size !== ids.length) return false;
+    if (!Array.isArray(ids) || Object.keys(ids).length !== ids.length || !ids.every((i) => Number.isInteger(i) && i >= 0 && i < SC.length) || new Set(ids).size !== ids.length) return false;
     if (q.k === "o") return ids.length === 1;
     if (ids.length !== 3 || (q.x !== 0 && q.x !== 1) || ids.filter((t) => SC[t].a === q.x).length !== 1) return false;
     const z = ids.map((t) => SC[t].z).filter(Boolean);
