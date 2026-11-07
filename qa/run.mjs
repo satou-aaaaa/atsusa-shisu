@@ -234,6 +234,30 @@ try {
   check("めやす帳から練習：その場面が1問目に出る", G.mainOf((await cur(page)).q) === fm);
   await page.close();
 
+  // おさらい（まちがえた・ヒントを見た場面）
+  { const p = await newPage();
+    await p.evaluate((K) => { localStorage.setItem(K, JSON.stringify({ v: 1, tut: true, t: 1 })); }, KEY);
+    await p.reload(); await closeHow(p);
+    check("おさらい：まちがえた場面が無いうちはボタンを出さない", (await p.locator("#go-r").count()) === 0);
+    await p.click("#go-p"); await p.click("#rand");
+    const missed = [];
+    for (let j = 0; j < 5; j++) { const c = await cur(p); if (j === 1) { await p.click("#hint"); await p.evaluate(() => window.__sk.pick(window.__sk.answer())); } else if (j % 2 === 0) await p.evaluate(() => { const a = window.__sk.answer(); window.__sk.pick(window.__sk.cur().q.k === "o" ? 1 - a : (a + 1) % 3); }); else await p.evaluate(() => window.__sk.pick(window.__sk.answer())); if (j !== 3) missed.push(G.mainOf(c.q)); if (j < 4) await p.click("#next"); }
+    await p.click("#next"); await p.evaluate(() => window.__sk.home());
+    const want = [...new Set(missed)];
+    check("おさらい：まちがえた場面・ヒントを見て当てた場面がホームのボタンに数で出る（一度で当てた場面は入らない）", (await p.textContent("#go-r")).includes(String(want.length)), await p.textContent("#go-r"));
+    await p.click("#go-r");
+    let c = await cur(p);
+    check("おさらい：古いまちがいから「よい？よくない？」で出る", c.mode === "r" && c.q.k === "o" && c.q.t === want[0]);
+    await p.evaluate(() => window.__sk.pick(1 - window.__sk.answer())); await p.click("#next");
+    for (let j = 1; j < want.length; j++) { await p.evaluate(() => window.__sk.pick(window.__sk.answer())); await p.click("#next"); }
+    const left = await p.evaluate(() => { window.__sk.home(); const b = document.getElementById("go-r"); return b ? b.textContent : ""; });
+    check("おさらい：一度で当てた場面は消え、またまちがえた場面は残る", left.includes("1") && (await p.evaluate((t) => { const s = window.__sk.load(); return s.miss[t] > (s.fix[t] || 0); }, want[0])));
+    await p.click("#go-r"); await p.evaluate(() => window.__sk.pick(window.__sk.answer())); await p.click("#next");
+    check("おさらい：全部一度で当てるとボタンが消える・今日の記録・連続には数えない", (await p.locator("#go-r").count()) === 0 && (await p.evaluate(() => { window.__sk.home(); const s = window.__sk.load(); return !document.getElementById("go-r") && Object.keys(s.days).length === 0 && Object.keys(s.late).length === 0; })));
+    check("おさらい：古いタブの記録と合わせても、一度で当てた場面は戻らない（時刻の新しいほう）", await p.evaluate((K) => { const now = window.__sk.load(); mem = JSON.stringify(Object.assign({}, now, { t: now.t + 9, miss: { 3: 100 }, fix: {} })); const s = window.__sk.load(); mem = null; const t = Object.keys(now.fix)[0]; return s.miss[3] === Math.max(100, now.miss[3] || 0) && !!t && s.fix[t] === now.fix[t] && !(s.miss[t] > s.fix[t]); }, KEY));
+    check("おさらい：5つより多くまちがえても、出るのは古いほうから5問", await p.evaluate((K) => { const s = window.__sk.load(); s.miss = {}; s.fix = {}; for (let t = 0; t < 8; t++) s.miss[t] = 1000 - t; localStorage.setItem(K, JSON.stringify(s)); window.__sk.startRun("r"); const L = window.__sk.load().runs.r.list.map((q) => q.t); return JSON.stringify(L) === JSON.stringify([7, 6, 5, 4, 3]); }, KEY));
+    await p.close(); }
+
   // あとから（取りこぼした日）・カレンダー
   { const p = await newPage();
     await p.evaluate((K) => { localStorage.setItem(K, JSON.stringify({ v: 1, tut: true, t: 1 })); }, KEY);
@@ -283,7 +307,9 @@ try {
     check("別のタブで回が変わっていたら、古いタブの答えを記録しない", r === 0);
     check("保存に失敗したら、保存できるまで知らせ続け、保存できたら消す", await p.evaluate(async () => { const orig = Storage.prototype.setItem; Storage.prototype.setItem = function () { throw new Error("full"); }; window.__sk.save(() => {}); window.__sk.save(() => {}); const one = document.querySelectorAll("#savewarn").length === 1 && document.getElementById("savewarn").textContent.includes("保存できませんでした"); await new Promise((r) => setTimeout(r, 2500)); const stay = !!document.getElementById("savewarn"); Storage.prototype.setItem = orig; window.__sk.save(() => {}); return one && stay && !document.getElementById("savewarn"); }));
     check("保存できない帯は画面のいちばん上に場所を取り（ボタンに重ならない）、読み上げの知らせにも出し、ほかの知らせのあとも警告が残る・保存できたら帯と警告が消え、ほかの知らせは残る", await p.evaluate(async () => { const W = "保存できませんでした", tick = () => new Promise((r) => setTimeout(r, 50)); const orig = Storage.prototype.setItem; Storage.prototype.setItem = function () { throw new Error("full"); }; window.__sk.save(() => {}); const b = document.getElementById("savewarn"); const top = !!b && document.body.firstElementChild === b && getComputedStyle(b).position === "sticky"; const l = document.getElementById("live"); let live = true, kept = true, other = true; if (l) { live = l.textContent.includes(W); l.textContent = ""; await tick(); l.textContent = "べつの知らせ"; await tick(); kept = l.textContent.includes("べつの知らせ") && l.textContent.includes(W); } Storage.prototype.setItem = orig; window.__sk.save(() => {}); await tick(); if (l) other = l.textContent === "べつの知らせ"; return top && live && kept && other && !document.getElementById("savewarn"); }));
-    check("保存できない帯は、長い画面を下までスクロールしても画面の上に見えている（body の高さで止まらない）", await p.evaluate(async () => { const orig = Storage.prototype.setItem; Storage.prototype.setItem = function () { throw new Error("full"); }; window.__sk.save(() => {}); const pad = document.createElement("div"); pad.style.height = "3000px"; document.body.appendChild(pad); scrollTo(0, document.documentElement.scrollHeight); await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))); const b = document.getElementById("savewarn"), r = b && b.getBoundingClientRect(); const ok = !!r && scrollY > 1000 && r.top >= -1 && r.top < 5; pad.remove(); scrollTo(0, 0); Storage.prototype.setItem = orig; window.__sk.save(() => {}); return ok && !document.getElementById("savewarn"); }));
+    await p.evaluate(() => window.__sk.home()); await p.click("#go-dex");
+    check("めやす帳は画面より十分長い（帯のスクロールの検査に使う）", await p.evaluate(() => document.documentElement.scrollHeight - innerHeight > 1000));
+    check("保存できない帯は、長い画面を下までスクロールしても画面の上に見えている（めやす帳で。body の高さで止まらない・帯に高さがあり見えている）", await p.evaluate(async () => { const orig = Storage.prototype.setItem; Storage.prototype.setItem = function () { throw new Error("full"); }; window.__sk.save(() => {}); scrollTo(0, document.documentElement.scrollHeight); await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))); const b = document.getElementById("savewarn"), r = b && b.getBoundingClientRect(); const ok = !!r && r.height > 0 && getComputedStyle(b).visibility === "visible" && getComputedStyle(b).display !== "none" && scrollY > 1000 && r.top >= -1 && r.top < 5; scrollTo(0, 0); Storage.prototype.setItem = orig; window.__sk.save(() => {}); return ok && !document.getElementById("savewarn"); }));
     check("保存に失敗したあと別のタブが保存しても、両方の日ごとの結果を残し、数は大きいほう", await p.evaluate((K) => { const s0 = window.__sk.load(); mem = JSON.stringify(Object.assign({}, s0, { t: 5, days: { "2000-01-01": { r: [] } }, seen: { 3: 9 }, ebest: 7 })); localStorage.setItem(K, JSON.stringify(Object.assign({}, s0, { t: 9, days: { "2000-01-02": { r: [] } }, seen: { 3: 2 }, ebest: 3 }))); const r = window.__sk.load(); mem = null; return !!r.days["2000-01-01"] && !!r.days["2000-01-02"] && r.seen[3] === 9 && r.ebest === 7; }, KEY));
     check("同じ回の途中経過は、進んだほう（新しく保存したタブが遅れていても）", await p.evaluate((K) => { const s0 = window.__sk.load(), base = { mode: "d", date: "2000-01-01", list: [], id: "x" }; mem = JSON.stringify(Object.assign({}, s0, { t: 5, runs: { d: Object.assign({}, base, { res: [{ m: 0, h: 0 }] }) } })); localStorage.setItem(K, JSON.stringify(Object.assign({}, s0, { t: 9, runs: { d: Object.assign({}, base, { res: [] }) } }))); const r = window.__sk.load(); mem = null; return r.runs.d.res.length === 1; }, KEY));
     check("こわれた記録でも画面が出る（入れ物を補う）", await p.evaluate((K) => { localStorage.setItem(K, JSON.stringify({ v: 1, days: 5, seen: null, runs: "x" })); try { window.__sk.home(); return !!document.getElementById("go-d"); } catch (e) { return false; } }, KEY));
@@ -311,7 +337,7 @@ try {
     await p.close(); }
 
   // 引き継ぎコード（shared-workflows template/qa/transfer-check.mjs）
-  { const sample = { [KEY]: JSON.stringify({ v: 1, tut: true, days: { "2026-11-07": { r: [{ m: 0, h: 0 }] } }, hdays: {}, late: {}, seen: { 0: 1, 5: 2 }, one: { 0: 1 }, ebest: 4, runs: {}, ach: {}, kofi: {}, t: 1 }) };
+  { const sample = { [KEY]: JSON.stringify({ v: 1, tut: true, days: { "2026-11-07": { r: [{ m: 0, h: 0 }] } }, hdays: {}, late: {}, seen: { 0: 1, 5: 2 }, one: { 0: 1 }, miss: { 5: 3 }, fix: {}, ebest: 4, runs: {}, ach: {}, kofi: {}, t: 1 }) };
     await checkTransfer({ browser, url, game: "atsusa-shisu", sample, check, open: async (page) => { await page.evaluate(() => { const d = document.getElementById("howto"); if (d.open) d.close(); }); } }); }
 } catch (e) {
   check("QA の操作が最後まで完了する", false, e.message.split("\n")[0]);
