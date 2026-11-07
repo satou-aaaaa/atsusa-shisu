@@ -1,0 +1,28 @@
+{
+  "screens": [
+    {
+      "name": "今日の5問",
+      "click": [
+        "#go-d"
+      ]
+    },
+    {
+      "name": "練習",
+      "click": [
+        "#go-p"
+      ]
+    },
+    {
+      "name": "めやす帳",
+      "click": [
+        "#go-dex"
+      ]
+    },
+    {
+      "name": "カレンダー",
+      "click": [
+        "#go-cal"
+      ]
+    }
+  ]
+}
