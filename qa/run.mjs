@@ -242,6 +242,8 @@ try {
     await p.evaluate(() => { const RD = Date, off = 3 * 864e5; window.Date = class extends RD { constructor(...a) { if (a.length) super(...a); else super(RD.now() + off); } static now() { return RD.now() + off; } }; });
     await p.evaluate(() => window.__sk.home()); await p.click("#go-cal");
     const lt2 = await p.evaluate(() => window.__sk.lateDays(window.__sk.load()));
+    // 対象の日が前の月なら、その月へ移ってから見る（月末に走らせると、3日後のカレンダーは次の月になる。2026-11-07 CodeRabbit）
+    if (lt2.length && lt2[0].slice(0, 7) !== (await p.evaluate(() => window.__sk.todayKey())).slice(0, 7)) await p.click("#pm");
     check("カレンダー：あとから遊べる日は ▶（点線のボタン）", lt2.length > 0 && (await p.locator(`.cal button[data-k="${lt2[0]}"]`).count()) === 1, JSON.stringify(lt2));
     if (lt2.length) {
       const dk = lt2[0];
