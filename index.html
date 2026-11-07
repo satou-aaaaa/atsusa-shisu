@@ -345,7 +345,8 @@ function lateDays(s, k = todayKey()) { const out = []; let d = prevDay(k); for (
 
 // ---- 記録（この端末の localStorage だけ）----
 // days・hdays・late：日ごとの結果 {r:[{m,h}]}。seen：場面ごとに出会った回数・one：一度で当てた回数。runs：モードごとの途中経過
-const fresh = () => ({ v: 1, days: {}, hdays: {}, late: {}, seen: {}, one: {}, ebest: 0, runs: {}, ach: {}, kofi: {}, ended: [], tut: false, t: 0 });
+// miss・fix：場面ごとに、まちがえた（ヒントを見た）時刻・あとで一度で当てた時刻。miss が新しい場面がおさらいに出る
+const fresh = () => ({ v: 1, days: {}, hdays: {}, late: {}, seen: {}, one: {}, ebest: 0, runs: {}, ach: {}, kofi: {}, miss: {}, fix: {}, ended: [], tut: false, t: 0 });
 let mem = null; // 保存できない環境では、開いているあいだだけここに置く
 const isObj = (x) => x && typeof x === "object" && !Array.isArray(x);
 // 数だけを数として読む（引き継ぎで入った変な値で例外にしない）
@@ -356,7 +357,7 @@ const prog = (r) => (r && Array.isArray(r.res) ? r.res.length * 10 + (r.cur ? (r
 function merge(a, b) {
   const [n, o] = (a.t || 0) >= (b.t || 0) ? [a, b] : [b, a], s = Object.assign(fresh(), o, n);
   for (const k of ["days", "hdays", "late", "ach", "kofi"]) s[k] = Object.assign({}, n[k], o[k]);
-  for (const k of ["seen", "one"]) { s[k] = Object.assign({}, o[k], n[k]); for (const q in o[k] || {}) s[k][q] = Math.max(num(o[k][q]), num((n[k] || {})[q])); }
+  for (const k of ["seen", "one", "miss", "fix"]) { s[k] = Object.assign({}, o[k], n[k]); for (const q in o[k] || {}) s[k][q] = Math.max(num(o[k][q]), num((n[k] || {})[q])); }
   s.ebest = Math.max(num(o.ebest), num(n.ebest));
   s.tut = !!(o.tut || n.tut);
   s.ended = [...new Set([...(Array.isArray(o.ended) ? o.ended : []), ...(Array.isArray(n.ended) ? n.ended : [])])].slice(-40);
@@ -366,8 +367,8 @@ function merge(a, b) {
 }
 // 形のこわれた途中経過・終えた回（ended）・こわれた日の記録は捨てる（ホームを止めない・古いタブの写しで終えた回を戻さない）
 function clean(s) {
-  s = Object.assign(fresh(), isObj(s) ? s : {}); for (const k of ["days", "hdays", "late", "seen", "one", "runs", "ach", "kofi"]) if (!isObj(s[k])) s[k] = {}; s.ebest = num(s.ebest);
-  for (const k of ["seen", "one"]) for (const q in s[k]) s[k][q] = num(s[k][q]);
+  s = Object.assign(fresh(), isObj(s) ? s : {}); for (const k of ["days", "hdays", "late", "seen", "one", "miss", "fix", "runs", "ach", "kofi"]) if (!isObj(s[k])) s[k] = {}; s.ebest = num(s.ebest);
+  for (const k of ["seen", "one", "miss", "fix"]) for (const q in s[k]) s[k][q] = num(s[k][q]);
   s.ended = Array.isArray(s.ended) ? s.ended.filter((x) => typeof x === "string").slice(-40) : [];
   for (const m in s.runs) { const r = s.runs[m]; if (!isObj(r) || !Array.isArray(r.res) || !Array.isArray(r.list) || typeof r.date !== "string" || s.ended.includes(r.id) || !r.res.every(okRes) || !r.list.every((q) => G.valid(q))) delete s.runs[m]; }
   const rec = (x) => isObj(x) && Array.isArray(x.r) && x.r.every((r) => isObj(r) && typeof r.m === "number");
@@ -379,6 +380,8 @@ function load() { let a = null, b = null; try { b = JSON.parse(localStorage.getI
 function saveWarn(on) { let b = document.getElementById("savewarn"); const l = document.getElementById("live"), W = "この端末に記録を保存できませんでした。ページを開き直すと、いまの記録が消えます"; if (!on) { if (b) { b.remove(); if (saveWarn.o) saveWarn.o.disconnect(); if (l && l.textContent.includes(W)) l.textContent = l.textContent.replace(W, "").replace(/^[。\s]+|[。\s]+$/g, ""); } return; } if (b) return; b = document.createElement("div"); b.id = "savewarn"; b.setAttribute("role", "status"); b.textContent = W; b.style.cssText = "position:sticky;top:0;z-index:9999;padding:8px 12px;background:#fff3cd;color:#000;font-size:15px;line-height:1.5;text-align:center;pointer-events:none;border-bottom:2px solid #8a6d00"; (document.body || document.documentElement).prepend(b); if (l) { l.textContent = W; if (window.MutationObserver) { saveWarn.o = new MutationObserver(() => { if (document.getElementById("savewarn") && l.textContent && !l.textContent.includes(W)) l.textContent += "。" + W; }); saveWarn.o.observe(l, { childList: true, characterData: true, subtree: true }); } } } // 帯は画面のいちばん上に場所を取り（ボタンに重ならない）、#live でも読み上げる。ほかの知らせで #live が書き換わっても、保存できないあいだは警告を後ろに付け直す。保存できたら帯と #live の警告を消す（黙って記録が消えないように・古い警告を読み上げないように）
 function save(fn) { const s = load(); fn(s); s.t = Math.max(Date.now(), (s.t || 0) + 1); const j = JSON.stringify(s); try { localStorage.setItem(KEY, j); mem = null; saveWarn(false); } catch (e) { mem = j; saveWarn(true); } return s; }
 function streak(days) { let k = todayKey(), n = 0; if (!days[k]) k = prevDay(k); while (days[k]) { n++; k = prevDay(k); } return n; }
+// おさらい：まちがえた・ヒントを見た場面のうち、そのあと一度で当てていないもの（古いまちがいから5つ）
+const reviewIds = (s) => Object.keys(s.miss).map(Number).filter((t) => T[t] && num(s.miss[t]) > num(s.fix[t])).sort((a, b) => s.miss[a] - s.miss[b] || a - b).slice(0, 5);
 const playedDays = (s) => new Set([...Object.keys(s.days), ...Object.keys(s.late)]).size;
 const metSet = (s) => new Set(Object.keys(s.seen).filter((t) => s.seen[t] > 0).map(Number).filter((t) => T[t]));
 const RANKS = [[0, "暑さ指数はじめ"], [10, "めやすじょうず"], [25, "熱中症よぼう名人"], [T.length, "暑さ指数博士"]];
@@ -423,7 +426,7 @@ $("howto-ok").onclick = () => { save((s) => { s.tut = true; }); const d = $("how
 // Esc・戻る操作で閉じても「見た」を残す（shared-workflows incidents/2026-11-07-howto-esc-not-saved.md）
 $("howto").addEventListener("cancel", () => { if (!load().tut) save((s) => { s.tut = true; }); });
 $("howto").addEventListener("close", () => { if (!load().tut) save((s) => { s.tut = true; }); });
-const MODES = { d: "今日の5問", h: "上級", p: "練習", e: "とことん", a: "あとから" };
+const MODES = { d: "今日の5問", h: "上級", p: "練習", e: "とことん", a: "あとから", r: "おさらい" };
 let VIEW = 0; // 画面が替わるたびに増やす（遅れて動く処理は、替わっていたら何もしない）
 function later(fn, ms) { const v = VIEW; setTimeout(() => { if (v === VIEW) fn(); }, ms); }
 function show(html) { VIEW++; app.innerHTML = html; bindFooter(); window.scrollTo(0, 0); }
@@ -432,7 +435,7 @@ function show(html) { VIEW++; app.innerHTML = html; bindFooter(); window.scrollT
 function home() {
   const s = load(), k = todayKey(), done = s.days[k], hdone = s.hdays[k];
   for (const m of Object.keys(s.runs).filter((k) => k === "d" || k === "h" || k.startsWith("a:"))) { const r = s.runs[m]; if (r && r.res.length >= r.list.length) return finish(m); } // 日付が変わっても、解き終えた回は記録してから次へ
-  const met = metSet(s).size, nr = nextRank(met);
+  const met = metSet(s).size, nr = nextRank(met), rv = reviewIds(s);
   const rd = s.runs.d && s.runs.d.date === k ? s.runs.d : null, rh = s.runs.h && s.runs.h.date === k ? s.runs.h : null;
   const back = !done && Object.keys(s.days).length && !s.days[prevDay(k)] && !s.late[prevDay(k)];
   show(`
@@ -442,6 +445,7 @@ function home() {
     ${done ? `<div class="share">今日の結果　${done.r.map(sq).join("")}</div>` : ""}
     <button class="main" id="go-d">${done ? "今日の結果を見る" : rd ? `続きから（${rd.res.length + 1}問目）` : `今日の5問 <small>#${G.dayNo(k)}</small>`}</button>
     <button class="main alt" id="go-e">とことん：何問続けて当てられる？${s.ebest ? `<small>（最高 ${s.ebest}）</small>` : ""}</button>
+    ${rv.length ? `<button class="sub" id="go-r">おさらい：まちがえた場面 ${rv.length}</button>` : ""}
     <div class="row"><button class="sub" id="go-h">${hdone ? "上級の結果" : rh ? "上級の続き" : "上級（3問・ヒントなし）"}</button><button class="sub" id="go-p">練習（なかま別）</button></div>
     <div class="row"><button class="sub" id="go-dex">めやす帳 ${met}/${T.length}</button><button class="sub" id="go-ach">実績 ${achDone(s).length}/${achList(s).length}</button></div>
     <button class="sub" id="go-cal">カレンダー${lateDays(s).length ? `（あとから遊べる日 ${lateDays(s).length}）` : ""}</button>
@@ -453,6 +457,7 @@ function home() {
   $("go-h").onclick = () => (k !== todayKey() ? home() : hdone ? result("h", k) : startRun("h"));
   $("go-e").onclick = () => startRun("e");
   $("go-p").onclick = practiceMenu;
+  if ($("go-r")) $("go-r").onclick = () => startRun("r");
   $("go-dex").onclick = () => dex();
   $("go-ach").onclick = ach;
   $("go-cal").onclick = () => cal();
@@ -479,6 +484,7 @@ function startRun(mode, opt) {
     let list;
     if (mode === "d" || mode === "h") list = listOf(mode, k);
     else if (mode === "a") list = G.dailyList(opt);
+    else if (mode === "r") list = reviewIds(s).map((t) => ({ k: "o", t })); // おさらいは「よい？よくない？」で1つずつ（乱数を使わない）
     else if (mode === "p") list = typeof opt === "number" && T[opt] ? G.practiceList(Math.random, T[opt].g, opt) : G.practiceList(Math.random, G.GROUPS.includes(opt) ? opt : "");
     else { if (s.runs.e && s.runs.e.res && s.runs.e.res.length < s.runs.e.list.length) return; list = G.endlessList(Math.random, s.elast, 0); }
     if (!list.length) { ok = false; return; }
@@ -565,6 +571,7 @@ function pick(j) {
     for (const t of G.idsOf(q)) s.seen[t] = (+s.seen[t] || 0) + 1;
     const main = G.mainOf(q);
     if (one(rec)) s.one[main] = (+s.one[main] || 0) + 1;
+    const now = Date.now(); if (!one(rec)) s.miss[main] = Math.max(now, num(s.fix[main]) + 1); else if (num(s.miss[main]) > num(s.fix[main])) s.fix[main] = Math.max(now, num(s.miss[main]) + 1); // おさらいの出入り（時刻は前のものより必ず後にする）
     if (r.mode === "e") { r.n1 = ok ? (r.n1 || 0) + 1 : 0; r.best = Math.max(r.best || 0, r.n1); s.ebest = Math.max(s.ebest, r.n1); s.elast = main; n1 = r.n1; }
     fin = r.mode !== "e" && r.res.length >= r.list.length;
   });
@@ -628,12 +635,14 @@ function result(mode, k, first, prec, fresh, run) {
     <p class="note">🟩一度で　🟨ヒントで当てた　🟧はずれ<br>次の5問まで あと <b>${untilNext()}</b></p>` : ""}
     <button class="main alt" id="go-e">続けて遊ぶ：とことん${s.ebest ? `（最高 ${s.ebest}）` : ""}</button>
     <div class="row">${mode === "d" && k === todayKey() && !s.hdays[k] ? `<button class="sub" id="go-h">上級に挑む</button>` : ""}<button class="sub" id="go-p">練習する</button><button class="sub" id="go-dex">めやす帳</button></div>
+    ${reviewIds(s).length ? `<button class="sub" id="go-r">おさらい：まちがえた場面 ${reviewIds(s).length}</button>` : ""}
     ${showKofi ? `<p class="note">楽しめたら、<a href="https://ko-fi.com/satouaaaaa" target="_blank" rel="noopener">Ko-fi でコーヒー1杯の応援</a>をもらえると、新しいゲームづくりの励みになります（任意・遊ぶのはずっと無料）。</p>` : ""}
     ${footer()}`);
   $("back").onclick = home;
   $("go-e").onclick = () => startRun("e");
   $("go-p").onclick = practiceMenu;
   $("go-dex").onclick = () => dex();
+  if ($("go-r")) $("go-r").onclick = () => startRun("r");
   if ($("go-h")) $("go-h").onclick = () => (k === todayKey() ? startRun("h") : home());
   if (daily) {
     const withUrl = text + "\n" + SITE;
