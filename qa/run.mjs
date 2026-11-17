@@ -324,7 +324,7 @@ try {
   // スマホ幅 320px・押せる所の大きさ
   { const p = await newPage({ viewport: { width: 320, height: 640 } }); await closeHow(p);
     const over = async () => p.evaluate(() => document.documentElement.scrollWidth > innerWidth + 1);
-    const small = async () => p.evaluate(() => [...document.querySelectorAll("button,a,input")].filter((b) => { const r = b.getBoundingClientRect(); return r.width && r.height && r.height < 44 && !b.closest(".a11y-dlg") && getComputedStyle(b).visibility !== "hidden"; }).map((b) => b.id || b.textContent.trim().slice(0, 10)));
+    const small = async () => p.evaluate(() => [...document.querySelectorAll("button,a,input")].filter((b) => { const r = b.getBoundingClientRect(); return r.width && r.height && Math.round(r.height) < 44 && !b.closest(".a11y-dlg") && getComputedStyle(b).visibility !== "hidden"; }).map((b) => b.id || b.textContent.trim().slice(0, 10)));
     const o1 = await over(), s1b = await small();
     await p.click("#go-h");
     const o2 = await over(), s2 = await small();
