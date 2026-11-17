@@ -339,6 +339,16 @@ try {
   // 引き継ぎコード（shared-workflows template/qa/transfer-check.mjs）
   { const sample = { [KEY]: JSON.stringify({ v: 1, tut: true, days: { "2026-11-07": { r: [{ m: 0, h: 0 }] } }, hdays: {}, late: {}, seen: { 0: 1, 5: 2 }, one: { 0: 1 }, miss: { 5: 3 }, fix: {}, ebest: 4, runs: {}, ach: {}, kofi: {}, t: 1 }) };
     await checkTransfer({ browser, url, game: "atsusa-shisu", sample, check, open: async (page) => { await page.evaluate(() => { const d = document.getElementById("howto"); if (d.open) d.close(); }); } }); }
+  // 知らせ（.toast）が出ているあいだも、その下のボタンを押せる（2026-11-17。知らせがボタンをふさがないように）
+  {
+    const ct = await browser.newContext({ viewport: { width: 390, height: 800 } });
+    const pt = await ct.newPage(); await pt.goto(url); await pt.waitForTimeout(300);
+    const at = await pt.evaluate(() => { const d = document.getElementById("howto"); if (d && d.open && d.close) d.close(); toast("おしらせの検査"); const t = [...document.querySelectorAll(".toast")].pop(), r = t.getBoundingClientRect(), b = document.createElement("button"); b.id = "qa-under"; b.textContent = "下"; b.style.cssText = "position:fixed;left:0;bottom:0;width:100%;height:" + (innerHeight - r.top + 10) + "px;z-index:1"; b.onclick = () => { b.dataset.hit = "1"; }; document.body.appendChild(b); return { x: r.left + r.width / 2, y: r.top + r.height / 2, pe: getComputedStyle(t).pointerEvents }; });
+    await pt.mouse.click(at.x, at.y); await pt.waitForTimeout(50);
+    const hit = await pt.evaluate(() => { const b = document.getElementById("qa-under"), on = !!document.querySelector(".toast"), h = b.dataset.hit === "1"; b.remove(); return on && h; });
+    check("知らせ（.toast）が出ているあいだも、その下のボタンを押せる（pointer-events:none）", at.pe === "none" && hit, JSON.stringify(at));
+    await ct.close();
+  }
 } catch (e) {
   check("QA の操作が最後まで完了する", false, e.message.split("\n")[0]);
 } finally {
