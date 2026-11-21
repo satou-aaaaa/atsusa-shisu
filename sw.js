@@ -10,7 +10,7 @@
 //      長い受信でも保存し直しが終わるまで waitUntil で待つ
 // game:begin
 const CACHE = "atsusa-shisu-v1";
-const SHELL = ["./", "./index.html", "./data.js", "./game.js", "./transfer.js", "./manifest.webmanifest", "./icon-192.png", "./icon-512.png", "./icon-512-maskable.png"];
+const SHELL = ["./", "./index.html", "./data.js", "./game.js", "./transfer.js", "./transfer-qr.js", "./manifest.webmanifest", "./icon-192.png", "./icon-512.png", "./icon-512-maskable.png"];
 // game:end
 
 // 同じゲームの古い版（<名前>-v<数字>）だけを消す。同じサイトのほかのゲーム（kotowaza- と kotowaza-bamen- など）の保存には触らない
