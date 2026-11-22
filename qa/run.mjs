@@ -14,6 +14,7 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const url = pathToFileURL(path.join(root, "index.html")).href;
 const results = [];
 const check = (name, ok, detail = "") => results.push({ name, ok: !!ok, detail: String(detail).slice(0, 500) });
+const firstClose = async (q) => { if (await q.locator("#howto[open]").count()) await q.click("#howto-ok"); if (await q.locator("#core-coach").count()) { await q.evaluate(() => Core.coach.leave()); await q.waitForTimeout(100); } }; // はじめての練習の吹き出しをやめてホームへ（sync-template の migrateFirstQa が足した）
 const G = createRequire(import.meta.url)(path.join(root, "game.js"));
 const html = readFileSync(path.join(root, "index.html"), "utf8");
 const gameSrc = readFileSync(path.join(root, "game.js"), "utf8");
@@ -134,16 +135,16 @@ async function newPage(opt = {}) {
   await p.goto(url);
   return p;
 }
-const closeHow = (p) => p.evaluate(() => { const d = document.getElementById("howto"); if (d.open) document.getElementById("howto-ok").click(); });
+const closeHow = (p) => p.evaluate(() => { const d = document.getElementById("howto"); if (d.open) document.getElementById("howto-ok").click(); if (window.Core && Core.coach && Core.coach.active()) Core.coach.leave(); });
 const cur = (p) => p.evaluate(() => { const c = window.__sk.cur(); return c && { q: c.q, h: c.h, done: c.done, mode: c.mode, i: c.i, ans: window.__sk.answer() }; });
 async function answer(p, right = true) { const c = await cur(p); const n = c.q.k === "o" ? 2 : 3; let j = c.ans; if (!right) { for (let x = 0; x < n; x++) if (x !== c.ans && !(await p.locator(`#board button[data-j="${x}"]`).isDisabled())) { j = x; break; } } await p.click(`#board button[data-j="${j}"]`); await p.waitForSelector("#next"); }
 try {
   browser = await chromium.launch(process.env.CHROMIUM_PATH ? { executablePath: process.env.CHROMIUM_PATH } : {});
   const page = await newPage();
-  check("はじめて開くと遊び方が出る（出典つき）", await page.evaluate(() => document.getElementById("howto").open && /熱中症予防情報サイト/.test(document.getElementById("howto").textContent)));
+  check("はじめて開くと遊び方が出る（出典つき）", await page.evaluate(() => !!document.getElementById("core-coach") && /熱中症予防情報サイト/.test(document.getElementById("howto").textContent)));
   { const p0 = await newPage(); let bad = 0;
     for (let j = 0; j < 10; j++) { await p0.evaluate((K) => localStorage.removeItem(K), KEY); await p0.reload(); await p0.keyboard.press("Escape"); if (await p0.evaluate((K) => !(JSON.parse(localStorage.getItem(K) || "{}").tut), KEY)) bad++; await p0.reload(); if (await p0.evaluate(() => document.getElementById("howto").open)) bad++; }
-    await p0.evaluate((K) => localStorage.removeItem(K), KEY); await p0.reload(); await p0.click("#howto-ok");
+    await p0.evaluate((K) => localStorage.removeItem(K), KEY); await p0.reload(); await firstClose(p0);
     const atOnce = await p0.evaluate((K) => !!(JSON.parse(localStorage.getItem(K) || "{}").tut), KEY);
     check("遊び方：Esc で閉じても「見た」が残り、すぐ読み直しても出ない（10回）・「わかった」を押したその場で残る", bad === 0 && atOnce, bad);
     await p0.close(); }
@@ -338,7 +339,7 @@ try {
 
   // 引き継ぎコード（shared-workflows template/qa/transfer-check.mjs）
   { const sample = { [KEY]: JSON.stringify({ v: 1, tut: true, days: { "2026-11-07": { r: [{ m: 0, h: 0 }] } }, hdays: {}, late: {}, seen: { 0: 1, 5: 2 }, one: { 0: 1 }, miss: { 5: 3 }, fix: {}, ebest: 4, runs: {}, ach: {}, kofi: {}, t: 1 }) };
-    await checkTransfer({ browser, url, game: "atsusa-shisu", sample, check, open: async (page) => { await page.evaluate(() => { const d = document.getElementById("howto"); if (d.open) d.close(); }); } }); }
+    await checkTransfer({ browser, url, game: "atsusa-shisu", sample, check, open: async (page) => { await page.evaluate(() => { const d = document.getElementById("howto"); if (d.open) d.close(); if (window.Core && Core.coach && Core.coach.active()) Core.coach.leave(); }); } }); }
   // 知らせ（.toast）が出ているあいだも、その下のボタンを押せる（2026-11-17。知らせがボタンをふさがないように）
   {
     const ct = await browser.newContext({ viewport: { width: 390, height: 800 } });
