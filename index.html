@@ -773,9 +773,13 @@ function firstPlay() {
   const b = document.querySelector(".res button");
   if (!window.Core || !Core.coach || !b) { home(); return openHow(); }
   b.click();
-  // 練習は1問だけにする（数を減らしてから描き直す）
+  // 練習は1問だけにする（数を減らしてから描き直す）。問題の数を決めているゲーム（読み直しで数のちがう回を捨てる）は、元の数のまま
+  const keep = JSON.stringify((load().runs || {}).p || null);
   save((s) => { const r = s.runs && s.runs.p; if (r && Array.isArray(r.list)) r.list = r.list.slice(0, 1); });
-  play();
+  if (keep !== "null" && !(load().runs || {}).p) save((s) => { s.runs.p = JSON.parse(keep); });
+  play("p");
+  const seen = (q) => { const e = document.querySelector(q); return !!e && e.getBoundingClientRect().height > 0; };
+  FIRST_STEPS[0].sel = ["#board","#app h1","#app header","#app"].find(seen) || "#app";
   // 案内を閉じた（Esc も）ら、1問の練習の途中経過を残さずにホームへ（ふだんの練習の「続きから」を出さない）
   Core.coach.start(FIRST_STEPS, { home, onEnd: (done) => { if (done === false) { save((s) => { const r = s.runs && s.runs.p; if (r && !(r.res || []).length) delete s.runs.p; }); home(); } } });
 }
