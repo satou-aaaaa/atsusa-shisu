@@ -9,7 +9,7 @@
 //      保存したものは自分の版（cacheName）からだけ探す・入れるときは HTTP の保存を通さない（cache: "reload"）・
 //      長い受信でも保存し直しが終わるまで waitUntil で待つ
 // game:begin
-const CACHE = "atsusa-shisu-v1";
+const CACHE = "atsusa-shisu-v2";
 const SHELL = ["./", "./index.html", "./data.js", "./game.js", "./transfer.js", "./transfer-qr.js", "./manifest.webmanifest", "./icon-192.png", "./icon-512.png", "./icon-512-maskable.png"];
 // game:end
 

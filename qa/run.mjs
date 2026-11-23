@@ -81,7 +81,13 @@ const T = G.SC;
   check("10日で今日の問題にほとんどの場面が出る（40以上）", seen.size >= 40, seen.size);
   { let err = ""; try { for (const k of ["2026-11-06", "2026-10-01", "2025-01-01"]) { G.dailyList(k); G.hardList(k); if (G.dayNo(k) !== 1) err = k + " #" + G.dayNo(k); } } catch (e) { err = e.message; } check("時計が第1回より前にずれていても今日の問題が作れる（番号は #1）", !err, err); }
   const snap = createHash("sha256").update(JSON.stringify([...Array(120)].map((_, n) => [G.dailyList(day(n)), G.hardList(day(n))]))).digest("hex").slice(0, 16);
-  check("はじめの120日の今日の5問・上級は前と同じ（変えると過去の日の問題が変わる）", snap === "62bd3eba2fdaef2a", snap);
+  check("はじめの120日の今日の5問・上級は前と同じ（変えると過去の日の問題が変わる。2026-11-23 に FRESH_FROM より後の日だけ変えた）", snap === "b9dbb74204c604e6", snap);
+  { let n = 0; while (day(n) < G.FRESH_FROM) n++;
+    const old = createHash("sha256").update(JSON.stringify([...Array(n)].map((_, i) => [G.dailyList(day(i)), G.hardList(day(i))]))).digest("hex").slice(0, 16);
+    check("前の7日を避ける決まりを入れる前の日（" + G.FRESH_FROM + " より前）の問題は変わらない", n === 18 && old === "55190cdfd72a3dd1", n + ":" + old); }
+  { let ov = 0, tot = 0; const from = Math.round((Date.parse(G.FRESH_FROM) - Date.parse(G.EPOCH)) / 864e5);
+    for (let n = from + G.FRESH_DAYS; n < from + 365 * 3; n++) { const prev = new Set(); for (let j = 1; j <= G.FRESH_DAYS; j++) G.dailyList(day(n - j)).forEach((q) => prev.add(G.mainOf(q))); G.dailyList(day(n)).forEach((q) => { tot++; if (prev.has(G.mainOf(q))) ov++; }); }
+    check("今日の5問の主役は、前の7日に主役だった場面をほとんど出さない（3年で5%以下。前は36%）", ov <= tot * 0.05, ov + "/" + tot); }
   check("乱数は sort の比較の中で引かない", !/sort\([^)]*r\(\)/.test(gameSrc + html));
   check("Math.random は練習・とことんの並びと回の名札だけ（game.js には無い・index.html に5か所）", !/Math\.random/.test(gameSrc + dataSrc) && (html.match(/Math\.random/g) || []).length === 5, (html.match(/Math\.random/g) || []).length);
 }
