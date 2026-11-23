@@ -10,6 +10,8 @@
   const EPOCH = "2026-11-07";
   const KINDS = ["o", "o", "w", "o", "w"]; // 今日の5問の形
   const HARD_N = 3;
+  // この日からの今日の5問は、前の7日に主役だった場面をなるべく避ける（それより前の日の問題は変えない。2026-11-23 おもしろさの見直し）
+  const FRESH_FROM = "2026-11-25", FRESH_DAYS = 7;
 
   // ---- 種と乱数（日本時間の日付から。ここでは端末ごとの乱数を使わない）----
   function seedOf(str) { let h = 2166136261 >>> 0; for (const ch of String(str)) { h ^= ch.codePointAt(0); h = Math.imul(h, 16777619) >>> 0; } return h >>> 0; }
@@ -76,14 +78,33 @@
     }
     return POOL.find((i) => !used.has(i));
   }
+  // 前の FRESH_DAYS 日の今日の5問の主役（FRESH_FROM より後の日は、古い日から順に作ってから読む）
+  const prevDay = (k) => new Date(Date.parse(k) - 864e5).toISOString().slice(0, 10);
+  function recentMains(k) {
+    const days = []; for (let d = prevDay(k), n = 0; n < FRESH_DAYS; n++, d = prevDay(d)) days.push(d);
+    for (const d of days.slice().reverse()) if (d >= FRESH_FROM && !dmemo.has(d)) dailyList(d);
+    return new Set(days.flatMap((d) => dailyList(d).map(mainOf)));
+  }
+  // take と同じ並びから、前の7日の主役を避けて選ぶ。want を先に守り、避けきれなければ前の7日も使う
+  function takeFresh(start, used, recent, want) {
+    const N = POOL.length;
+    for (const [w, avoid] of want ? [[want, true], [want, false], [null, true]] : [[null, true]]) for (let p = start; p < start + N; p++) {
+      const id = permOf("d", Math.floor(p / N))[((p % N) + N) % N];
+      if (used.has(id) || (avoid && recent.has(id)) || (w && !w(id))) continue;
+      return id;
+    }
+    return take("d", start, used, want);
+  }
   const dmemo = new Map();
   function dailyList(k) {
     if (dmemo.has(k)) return dmemo.get(k);
+    const recent = k >= FRESH_FROM ? recentMains(k) : null;
     const r = rng(seedOf("d:" + k)), start = (dayNo(k) - 1) * KINDS.length, used = new Set(), mains = [];
     // 主役を先に5つ決める。「よい？よくない？」の3問には、よい・よくないを両方入れる
     KINDS.forEach((kind, j) => {
       const os = mains.filter((_, i) => KINDS[i] === "o").map((t) => SC[t].a), last = kind === "o" && os.length === 2 && os[0] === os[1];
-      const t = take("d", start + j, used, last ? (i) => SC[i].a !== os[0] : null);
+      const want = last ? (i) => SC[i].a !== os[0] : null;
+      const t = recent ? takeFresh(start + j, used, recent, want) : take("d", start + j, used, want);
       used.add(t); mains.push(t);
     });
     const u2 = new Set(mains);
@@ -121,6 +142,6 @@
   // 暑さ指数の段階の言い方（画面と検査で同じものを使う。無い場面は空）
   const fineOf = (t) => SC[t].f || "";
 
-  const api = { SC, EPOCH, DAILY_MAX_ID, KINDS, EKINDS, HARD_N, GROUPS: D.GROUPS, SRC: D.SRC, seedOf, rng, shuffle, dayNo, idsOf, answerOf, mainOf, valid, dailyList, hardList, starsOf, endlessList, practiceList, fineOf };
+  const api = { SC, EPOCH, FRESH_FROM, FRESH_DAYS, DAILY_MAX_ID, KINDS, EKINDS, HARD_N, GROUPS: D.GROUPS, SRC: D.SRC, seedOf, rng, shuffle, dayNo, idsOf, answerOf, mainOf, valid, dailyList, hardList, starsOf, endlessList, practiceList, fineOf };
   if (typeof module !== "undefined") module.exports = api; else window.JRG = api;
 })();
