@@ -818,8 +818,8 @@ function nextAch(s) { const L = achList(s).filter((a) => !a.done && a.cur > 0); 
 // ---- 画面の部品 ----
 function toast(t) { const d = document.createElement("div"); d.className = "toast"; d.textContent = t; document.body.appendChild(d); say(t); setTimeout(() => d.remove(), 1800); }
 function say(t) { const l = $("live"); l.textContent = ""; setTimeout(() => { l.textContent = t; }, 30); }
-const buzz = (n = 12) => { try { if (!document.documentElement.classList.contains("a11y-calm")) navigator.vibrate && navigator.vibrate(n); } catch (e) {} };
-const esc = (t) => String(t).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+const buzz = Core.buzz; // 共通部品 game-core（「動きを減らす」では震わせない）
+const esc = Core.esc; // 共通部品 game-core（" と ' も変える。属性の中でも切れない）
 const starStr = (s) => `<span class="stars" role="img" aria-label="星${s}つ">${"★".repeat(s)}<span class="off">${"☆".repeat(3 - s)}</span></span>`;
 const AW = ["○ よい", "✕ よくない"]; // 色だけで分けない（○・✕ と文字）
 const fineTag = (t) => (G.fineOf(t) ? `<span class="fine">${esc(G.fineOf(t))}</span>` : "");
@@ -1042,7 +1042,7 @@ function finish(key) {
 // 共有の文：場面・答えは出さない。🟩一度で・🟨ヒント・🟧はずれ
 const sq = (r) => ["", "🟧", "🟨", "🟩"][G.starsOf(r)];
 function shareText(mode, k, rec) { return `暑さ指数よみ${mode === "h" ? " 上級" : ""} #${G.dayNo(k)} ${md(k)}\n${rec.r.map(sq).join("")}${rec.r.every(one) ? " 全部一度で" : ""}`; }
-function untilNext() { const n = jstNow(), ms = 864e5 - (n.getTime() % 864e5); return `${Math.floor(ms / 36e5)}時間${Math.floor((ms % 36e5) / 6e4)}分`; }
+function untilNext() { return Core.untilNext(); } // 次の回までの時間（共通部品 game-core）
 function result(mode, k, first, prec, fresh, run) {
   const s = load();
   const rec = mode === "d" ? s.days[k] || prec : mode === "h" ? s.hdays[k] || prec : prec;
